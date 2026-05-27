@@ -202,7 +202,7 @@ Al intentar crear una reserva con IDs inexistentes, MySQL bloqueó la operación
 Al eliminar un usuario mediante Sequelize, el registro no se eliminó físicamente, sino que se actualizó el campo `deletedAt`.
 ## usuario eliminado error
 
-![usuario eliminado](img/bablas_create/delete.png)
+![usuario eliminado](img/tablas_create/delete.png)
 
 ### Sincronización automática
 

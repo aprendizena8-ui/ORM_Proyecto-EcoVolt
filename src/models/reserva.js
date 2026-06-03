@@ -9,6 +9,16 @@ const Reserva = sequelize.define('Reserva', {
         primaryKey: true
     },
 
+    id_usuario: {
+        type: DataTypes.UUID,
+        allowNull: false
+    },
+
+    id_conector: {
+        type: DataTypes.UUID,
+        allowNull: false
+    },
+
     fecha_reserva: {
         type: DataTypes.DATEONLY,
         allowNull: false
@@ -35,6 +45,14 @@ const Reserva = sequelize.define('Reserva', {
             'cancelada'
         ),
         defaultValue: 'pendiente'
+    },
+
+    total_pagar: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        validate: {
+            min: 0
+        }
     }
 
 }, {

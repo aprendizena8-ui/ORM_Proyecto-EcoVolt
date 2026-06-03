@@ -9,7 +9,7 @@ const Conector = require('./models/Conector');
 
 Usuario.hasMany(Reserva, {
     foreignKey: 'id_usuario',
-    onDelete: 'RESTRICT',
+    onDelete: 'CASCADE',
     onUpdate: 'CASCADE'
 });
 

@@ -7,28 +7,15 @@ const Reserva = require('./models/Reserva');
 const Conector = require('./models/Conector');
 
 
-Usuario.hasMany(Reserva, {
-    foreignKey: 'id_usuario',
-    onDelete: 'RESTRICT',
-    onUpdate: 'CASCADE'
-});
-
-Reserva.belongsTo(Usuario, {
+Usuario.belongsToMany(Conector, {
+    through: Reserva,
     foreignKey: 'id_usuario'
 });
 
-
-
-Estacion.hasMany(Reserva, {
-    foreignKey: 'id_estacion',
-    onDelete: 'RESTRICT',
-    onUpdate: 'CASCADE'
+Conector.belongsToMany(Usuario, {
+    through: Reserva,
+    foreignKey: 'id_conector'
 });
-
-Reserva.belongsTo(Estacion, {
-    foreignKey: 'id_estacion'
-});
-
 
 Estacion.hasMany(Conector, {
     foreignKey: 'id_estacion',
@@ -39,9 +26,6 @@ Estacion.hasMany(Conector, {
 Conector.belongsTo(Estacion, {
     foreignKey: 'id_estacion'
 });
-
-
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;

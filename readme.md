@@ -27,6 +27,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
   Si se elimina una estación, todos sus conectores asociados también se eliminan automáticamente.  
   Esto evita que queden conectores sin estación.
 
+  ---
   Estacion.hasMany(Conector, {
       foreignKey: { name: 'id_estacion', allowNull: false },
       onDelete: 'CASCADE',
@@ -38,6 +39,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE'
   });
+  ---
 
   Al tener una relación 1:N, el CASCADE borra automáticamente los conectores relacionados cuando se elimina la estación.
 
@@ -59,6 +61,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
   En su lugar, gracias al `paranoid: true` y al hook `beforeDestroy`, las reservas activas se actualizan a estado **cancelada**.  
   Esto conserva el historial y la trazabilidad del sistema.
 
+  ---
   const Usuario = sequelize.define('Usuario', {
       // atributos...
   }, {
@@ -83,6 +86,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE'
   });
+  ---
 
   El paranoid evita el borrado físico y el hook actualiza las reservas activas a cancelada.
 
@@ -106,6 +110,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
   No se permite borrar un conector si está asociado a reservas.  
   Esto garantiza que el historial de reservas no se pierda.
 
+  ---
   Conector.hasMany(Reserva, {
       foreignKey: { name: 'id_conector', allowNull: false },
       onDelete: 'RESTRICT',
@@ -117,6 +122,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
       onDelete: 'RESTRICT',
       onUpdate: 'CASCADE'
   });
+  ---
 
   El RESTRICT impide borrar un conector si tiene reservas asociadas, mostrando un error de MySQL.
 
@@ -135,7 +141,7 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
 
   El sistema arrojó un error de MySQL indicando que no se puede eliminar porque está referenciado en la tabla `reservas`.  
 
-  ![Figura 15](IMAGENES/15.Intentar borrar el conectorError.png)
+  ![Figura 15](IMAGENES/15.IntentarborrarelconectorError.png)
 
 
 # 3. Tablas intermedias

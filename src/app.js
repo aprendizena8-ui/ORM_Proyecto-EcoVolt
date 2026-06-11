@@ -25,7 +25,35 @@ Estacion.hasMany(Conector, {
 });
 
 Conector.belongsTo(Estacion, {
-    foreignKey: 'id_estacion'
+    foreignKey: 'id_estacion',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Relación Usuario ↔ Reserva
+Usuario.hasMany(Reserva, {
+    foreignKey: 'id_usuario',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+Reserva.belongsTo(Usuario, {
+    foreignKey: 'id_usuario',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Relación Conector ↔ Reserva (RESTRICT)
+Conector.hasMany(Reserva, {
+    foreignKey: 'id_conector',
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE'
+});
+
+Reserva.belongsTo(Conector, {
+    foreignKey: 'id_conector',
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE'
 });
 
 const app = express();

@@ -133,48 +133,7 @@ La tabla **Reserva** conecta correctamente  **Usuario** y **Conector**, además 
 
 ---
 
-## 3. Restricción Conector → Reserva (RESTRICT)
-
-### Lo que se pedía
-
-Impedir la eliminación de un conector cuando existan reservas asociadas.
-
-### Corrección implementada
-
-```javascript
-Conector.hasMany(Reserva, {
-    foreignKey: {
-        name: 'id_conector',
-        allowNull: false
-    },
-    onDelete: 'RESTRICT',
-    onUpdate: 'CASCADE'
-});
-
-Reserva.belongsTo(Conector, {
-    foreignKey: {
-        name: 'id_conector',
-        allowNull: false
-    },
-    onDelete: 'RESTRICT',
-    onUpdate: 'CASCADE'
-});
-```
-
-### Resultado
-
-MySQL genera el error:
-
-```sql
-Cannot delete or update a parent row:
-a foreign key constraint fails...
-```
-
-cuando se intenta eliminar un conector que posee reservas asociadas, garantizando la integridad referencial.
-
----
-
-## 4. Modelo Entidad Relación (MER)
+## 3. Modelo Entidad Relación (MER)
 
 ### Diagrama actualizado
 

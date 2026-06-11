@@ -1,102 +1,61 @@
-# 1. Mapear todas las relaciones
+# Correcciones realizadas en EcoVolt
 
-En el modelo de datos de **EcoVolt** se definieron las siguientes relaciones entre las entidades:
+---
 
-- **Usuario ↔ Conector (M:N) vía Reserva**  
-  Un usuario puede reservar distintos conectores y un conector puede ser reservado por distintos usuarios.  
-  Esta relación se implementa mediante la tabla intermedia **Reserva**, que además almacena atributos propios como `fecha_reserva`, `hora_inicio`, `duracion`, `estado` y `total_pagar`.
+## 1. Integridad Referencial y Soft Delete (No cumplía inicialmente)
 
-- **Estación ↔ Conector (1:N)**  
-  Una estación de carga puede tener múltiples conectores asociados.  
-  Si se elimina una estación, sus conectores también se eliminan (`onDelete: CASCADE`).
+### Lo que se pedía
+Definir qué sucede con las reservas activas cuando un usuario elimina su cuenta utilizando `paranoid: true`.
 
-- **Usuario ↔ Reserva (1:N)**  
-  Un usuario puede tener múltiples reservas registradas en el sistema.  
-  Esto permite mantener el historial de uso de cada usuario.
+### Lo que estaba mal
+- Se agregó `paranoid: true` al modelo `Usuario`, pero en `app.js` la relación se configuró con `onDelete: 'RESTRICT'`.  
+- Sequelize, al utilizar `paranoid`, no ejecuta un `DELETE` físico en la base de datos, sino un `UPDATE` que llena el campo `deletedAt`.  
+- Por esta razón, no se ejecutaba la lógica esperada para las reservas asociadas.
 
-- **Conector ↔ Reserva (1:N)**  
-  Un conector puede estar asociado a múltiples reservas en distintos momentos.  
-  Esto refleja la disponibilidad y uso histórico de cada conector.
+### Corrección implementada
+```javascript
+// Modelo Usuario con paranoid
+const Usuario = sequelize.define('Usuario', {
+    nombreCompleto: DataTypes.STRING,
+    correo: DataTypes.STRING,
+    // otros atributos...
+}, {
+    paranoid: true // habilita soft delete
+});
 
+// Hook para actualizar reservas activas a canceladas
+Usuario.addHook('beforeDestroy', async (usuario, options) => {
+    await Reserva.update(
+        { estado: 'cancelada' },
+        { where: { id_usuario: usuario.id, estado: 'activa' } }
+    );
+});
 
-# 2. Justificación de los borrados onDelete
+// Relación Usuario ↔ Reserva
+Usuario.hasMany(Reserva, {
+    foreignKey: { name: 'id_usuario', allowNull: false },
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
 
-En el sistema EcoVolt se definieron las siguientes reglas de borrado para mantener la integridad referencial:
+Reserva.belongsTo(Usuario, {
+    foreignKey: { name: 'id_usuario', allowNull: false },
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+```
 
-- **Estación → Conectores (CASCADE)**  
-  Si se elimina una estación, todos sus conectores asociados también se eliminan automáticamente.  
-  Esto evita que queden conectores sin estación.
+### Resultado
 
-  ---
-  Estacion.hasMany(Conector, {
-      foreignKey: { name: 'id_estacion', allowNull: false },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-  });
+Al eliminar un usuario, sus reservas activas cambian automáticamente al estado **cancelada**, conservando la trazabilidad de la información y evitando inconsistencias en el sistema.
 
-  Conector.belongsTo(Estacion, {
-      foreignKey: { name: 'id_estacion', allowNull: false },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-  });
-  ---
-
-  Al tener una relación 1:N, el CASCADE borra automáticamente los conectores relacionados cuando se elimina la estación.
-
-  **Prueba realizada:**
-
-1. Se creó una estación con un conector asociado.  
-   ![Figura 1](IMAGENES/1.Estacioncreada.png)
-   ![Figura 2](IMAGENES/2.Conectorasociadoalaestacion.png)
-
-2. Se eliminó la estación
-  ![Figura 3](IMAGENES/3.Eliminarestacion.png)
-
-  El conector desaparecio automaticamente porque estaba relacionado a la estacion
-  ![Figura 4](IMAGENES/4.Conectordesaparecio.png)
-  
-
-- **Usuario → Reserva (Soft Delete con paranoid + hook)**  
-  Cuando un usuario elimina su cuenta, no se borran sus reservas.  
-  En su lugar, gracias al `paranoid: true` y al hook `beforeDestroy`, las reservas activas se actualizan a estado **cancelada**.  
-  Esto conserva el historial y la trazabilidad del sistema.
-
-  ---
-  const Usuario = sequelize.define('Usuario', {
-      // atributos...
-  }, {
-      paranoid: true // habilita soft delete
-  });
-
-  Usuario.addHook('beforeDestroy', async (usuario, options) => {
-      await Reserva.update(
-          { estado: 'cancelada' },
-          { where: { id_usuario: usuario.id, estado: 'activa' } }
-      );
-  });
-
-  Usuario.hasMany(Reserva, {
-      foreignKey: { name: 'id_usuario', allowNull: false },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-  });
-
-  Reserva.belongsTo(Usuario, {
-      foreignKey: { name: 'id_usuario', allowNull: false },
-      onDelete: 'CASCADE',
-      onUpdate: 'CASCADE'
-  });
-  ---
-
-  El paranoid evita el borrado físico y el hook actualiza las reservas activas a cancelada.
-
-  **Prueba realizada:**
+**Prueba realizada:**
   1. Se creó un usuario y un conector con una reserva activa.
     ![Figura 5](IMAGENES/5.Conectorcreado.png)
     ![Figura 6](IMAGENES/6.Usuariocreado.png)
     ![Figura 7](IMAGENES/7.Reservaenestadoactiva.png)
 
-  2. Se eliminó el usuario con Sequelize (`usuario.destroy()`).  
+2. Se eliminó el usuario con Sequelize (`usuario.destroy()`).  
     ![Figura 8](IMAGENES/8.SoftDelete.png)
 
     Tabla `usuarios` mostrando el campo `deletedAt` lleno (soft delete aplicado). 
@@ -105,74 +64,120 @@ En el sistema EcoVolt se definieron las siguientes reglas de borrado para manten
     En la Tabla `reservas` la reserva pasó de **activa** a **cancelada** automáticamente. 
     ![Figura 10](IMAGENES/10.ReservaCancelada.png)
 
+---
 
-- **Conector → Reserva (RESTRICT)**  
-  No se permite borrar un conector si está asociado a reservas.  
-  Esto garantiza que el historial de reservas no se pierda.
+## 2. Relación Muchos a Muchos y Tabla Intermedia (No cumplía inicialmente)
 
-  ---
-  Conector.hasMany(Reserva, {
-      foreignKey: { name: 'id_conector', allowNull: false },
-      onDelete: 'RESTRICT',
-      onUpdate: 'CASCADE'
-  });
+### Lo que se pedía
 
-  Reserva.belongsTo(Conector, {
-      foreignKey: { name: 'id_conector', allowNull: false },
-      onDelete: 'RESTRICT',
-      onUpdate: 'CASCADE'
-  });
-  ---
+Implementar una relación **Muchos a Muchos (M:N)** entre `Usuario` y `Conector` mediante la tabla intermedia `Reserva`, incluyendo los siguientes atributos:
 
-  El RESTRICT impide borrar un conector si tiene reservas asociadas, mostrando un error de MySQL.
+* `fecha_reserva`
+* `hora_inicio`
+* `estado`
+* `total_pagar`
 
-  **Prueba realizada:**
-  1. Se creó un usuario y una estación previamente. 
-  ![Figura 11](IMAGENES/11.Estacioncreada.png)  
-  ![Figura 13](IMAGENES/13.Usuariocreado.png)
+### Lo que estaba mal
 
-  2. Se creó un conector asociado a la estación. 
-  ![Figura 12](IMAGENES/12.Conectorasociadoalaestacion.png)
+* Se relacionó `Reserva` con `Estacion` en lugar de `Conector`.
+* Se omitió el campo `total_pagar`.
+* No se utilizó `belongsToMany`, rompiendo la relación M:N requerida.
 
-  3. Se creó una reserva asociada al usuario y al conector.
-  ![Figura 14](IMAGENES/14.Reservasociadaalusuarioyconector.png)
+### Corrección implementada
 
-  4. Se intentó borrar el conector desde phpMyAdmin.  
-
-  El sistema arrojó un error de MySQL indicando que no se puede eliminar porque está referenciado en la tabla `reservas`.  
-
-  ![Figura 15](IMAGENES/15.IntentarborrarelconectorError.png)
-
-
-# 3. Tablas intermedias
-
-En el modelo de datos de **EcoVolt** se definió la tabla intermedia **Reserva** para implementar la relación M:N entre **Usuario** y **Conector**.  
-
-La tabla `reservas` no solo conecta ambas entidades, sino que también almacena atributos propios de la reserva:
-
-- `fecha_reserva`  
-- `hora_inicio`  
-- `duracion`  
-- `estado`  
-- `total_pagar`
-
-  ---
-const Reserva = sequelize.define('Reserva', {
-    fecha_reserva: { type: DataTypes.DATEONLY, allowNull: false },
-    hora_inicio: { type: DataTypes.TIME, allowNull: false },
-    duracion: { type: DataTypes.INTEGER, allowNull: false },
-    estado: { type: DataTypes.ENUM('pendiente','activa','finalizada','cancelada'), defaultValue: 'pendiente' },
-    total_pagar: { type: DataTypes.DECIMAL(10,2), allowNull: false }
+```javascript
+// Relación M:N Usuario ↔ Conector vía Reserva
+Usuario.belongsToMany(Conector, {
+    through: Reserva,
+    foreignKey: 'id_usuario'
 });
-  ---
 
-# 4. Modelo visual de las tablas
+Conector.belongsToMany(Usuario, {
+    through: Reserva,
+    foreignKey: 'id_conector'
+});
 
-Modelo entidad-relación (MER) del sistema **EcoVolt**, con las tablas y sus relaciones:
+// Modelo Reserva con atributos completos
+const Reserva = sequelize.define('Reserva', {
+    fecha_reserva: {
+        type: DataTypes.DATEONLY,
+        allowNull: false
+    },
+    hora_inicio: {
+        type: DataTypes.TIME,
+        allowNull: false
+    },
+    duracion: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    estado: {
+        type: DataTypes.ENUM(
+            'pendiente',
+            'activa',
+            'finalizada',
+            'cancelada'
+        ),
+        defaultValue: 'pendiente'
+    },
+    total_pagar: {
+        type: DataTypes.DECIMAL(10,2),
+        allowNull: false
+    }
+});
+```
 
-- **Usuario** (1:N) → **Reserva**  
-- **Conector** (1:N) → **Reserva**  
-- **Usuario** (M:N) ↔ **Conector** vía **Reserva**  
-- **Estación** (1:N) → **Conector**
+### Resultado
+
+La tabla **Reserva** conecta correctamente  **Usuario** y **Conector**, además almacena la información financiera  (total_pagar) de cada reserva.
+
+---
+
+## 3. Restricción Conector → Reserva (RESTRICT)
+
+### Lo que se pedía
+
+Impedir la eliminación de un conector cuando existan reservas asociadas.
+
+### Corrección implementada
+
+```javascript
+Conector.hasMany(Reserva, {
+    foreignKey: {
+        name: 'id_conector',
+        allowNull: false
+    },
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE'
+});
+
+Reserva.belongsTo(Conector, {
+    foreignKey: {
+        name: 'id_conector',
+        allowNull: false
+    },
+    onDelete: 'RESTRICT',
+    onUpdate: 'CASCADE'
+});
+```
+
+### Resultado
+
+MySQL genera el error:
+
+```sql
+Cannot delete or update a parent row:
+a foreign key constraint fails...
+```
+
+cuando se intenta eliminar un conector que posee reservas asociadas, garantizando la integridad referencial.
+
+---
+
+## 4. Modelo Entidad Relación (MER)
+
+### Diagrama actualizado
 
 ![Figura 16](IMAGENES/MEREcovoltcorregido.png)
+
+

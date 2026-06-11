@@ -156,8 +156,7 @@ La tabla `reservas` no solo conecta ambas entidades, sino que también almacena 
 - `estado`  
 - `total_pagar`
 
-**Código Sequelize:**
-```js
+  ---
 const Reserva = sequelize.define('Reserva', {
     fecha_reserva: { type: DataTypes.DATEONLY, allowNull: false },
     hora_inicio: { type: DataTypes.TIME, allowNull: false },
@@ -165,8 +164,7 @@ const Reserva = sequelize.define('Reserva', {
     estado: { type: DataTypes.ENUM('pendiente','activa','finalizada','cancelada'), defaultValue: 'pendiente' },
     total_pagar: { type: DataTypes.DECIMAL(10,2), allowNull: false }
 });
-
----
+  ---
 
 # 4. Modelo visual de las tablas
 
@@ -177,4 +175,4 @@ Modelo entidad-relación (MER) del sistema **EcoVolt**, con las tablas y sus rel
 - **Usuario** (M:N) ↔ **Conector** vía **Reserva**  
 - **Estación** (1:N) → **Conector**
 
-![Figura 16](IMAGENES/MER-Ecovoltcorregido.png)
+![Figura 16](IMAGENES/MEREcovoltcorregido.png)
